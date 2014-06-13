@@ -37,7 +37,7 @@ def __get_expanded_tuples(inner_table):
     sql = """
 with ids as ({0})
 select a.id, a.name, a.affiliation,
-  pa.paperid, pa.authorid, pa.name, pa.affiliation, ids.confirmed,
+  pa.authorid, pa.paperid, pa.name, pa.affiliation,
   p.id, p.title, p.year, p.keyword,
   c.id, c.shortname, c.fullname,
   j.id, j.shortname, j.fullname
@@ -49,21 +49,30 @@ from ids
   left join journal j on p.journalid = j.id
 """.format(inner_table)
     build_from_row = lambda r: Expanded(author=Author._make(r[0:3]) if r[0] else None,
-                                        paperauthor=PaperAuthor._make(r[3:8]) if r[3] and r[4] else None,
-                                        paper=Paper._make(r[8:12]) if r[8] else None,
-                                        conference=Conference._make(r[12:15]) if r[12] else None,
-                                        journal=Journal._make(r[15:18]) if r[15] else None)
+                                        paperauthor=PaperAuthor._make(r[3:7]) if r[3] and r[4] else None,
+                                        paper=Paper._make(r[7:11]) if r[7] else None,
+                                        conference=Conference._make(r[11:14]) if r[11] else None,
+                                        journal=Journal._make(r[14:17]) if r[14] else None)
 
     return [build_from_row(r) for r in __execute_sql(sql)]
 
 
 def get_train_tuples():
     inner_table = """
+select authorid, paperid from trainconfirmed
+union all
+select authorid, paperid from traindeleted
+"""
+    return __get_expanded_tuples(inner_table)
+
+
+def get_training_class_labels():
+    sql = """
 select authorid, paperid, true confirmed from trainconfirmed
 union all
 select authorid, paperid, false confirmed from traindeleted
 """
-    return __get_expanded_tuples(inner_table)
+    return {(r[0], r[1]): r[2] for r in __execute_sql(sql)}
 
 def get_valid_tuples():
     return __get_expanded_tuples("select authorid, paperid, null confirmed from validpaper")

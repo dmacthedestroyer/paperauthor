@@ -3,7 +3,7 @@ import itertools
 
 Author = namedtuple("Author", ["id", "name", "affiliation"])
 Paper = namedtuple("Paper", ["id", "title", "year", "keyword"])
-PaperAuthor = namedtuple("PaperAuthor", ["paperid", "authorid", "name", "affiliation", "confirmed"])
+PaperAuthor = namedtuple("PaperAuthor", ["authorid", "paperid", "name", "affiliation"])
 Journal = namedtuple("Journal", ["id", "shortname", "fullname"])
 Conference = namedtuple("Conference", ["id", "shortname", "fullname"])
 
