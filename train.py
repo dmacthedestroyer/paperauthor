@@ -2,67 +2,50 @@ from collections import Counter
 import itertools
 import data
 import keywords
+from models import Author, Paper
 import read
 
 
-def __build_author_tuple(at, affiliation_keywords, paper_keywords, paper_title_keywords,
+def __build_author_tuple(tt, affiliation_keywords, paper_keywords, paper_title_keywords,
                          conference_fullname_keywords, journal_fullname_keywords):
-    # number of occurrences of common affiliation keywords
-    author_affiliation_keyword_counts = Counter(read.extract_general_keywords(at.author.affiliation))
+    author_affiliation_keyword_counts = read.general_keyword_counter(a.affiliation for a in tt.authors)
+    assert len(tt.authors) == 1
+    yield len(tt.papers)
+    years = [p.year for p in tt.papers if p.year > 0]
+    yield min(years)
+    yield sum(years) / float(len(years))
+    yield max(years)
+    yield len(tt.conferences)
+    yield len(tt.journals)
     for kw in affiliation_keywords:
         yield author_affiliation_keyword_counts[kw]
+    for f in __build_common_tuple(tt, paper_keywords, paper_title_keywords, conference_fullname_keywords, journal_fullname_keywords):
+        yield f
 
-    # number of papers by author
-    yield len(at.papers)
 
-    #number of occurrences of common paper keywords for this author
-    paper_keyword_counts = Counter(itertools.chain.from_iterable(read.extract_paper_keywords(p.keyword) for p in at.papers))
+def __build_paper_tuple(tt, paper_keywords, paper_title_keywords, conference_fullname_keywords, journal_fullname_keywords):
+    assert len(tt.papers) == 1
+    for p in tt.papers:
+        yield p.year
+    yield len(tt.authors)
+    for f in __build_common_tuple(tt, paper_keywords, paper_title_keywords, conference_fullname_keywords, journal_fullname_keywords):
+        yield f
+
+
+def __build_common_tuple(tt, paper_keywords, paper_title_keywords,
+                         conference_fullname_keywords, journal_fullname_keywords):
+    paper_keyword_counts = Counter(itertools.chain.from_iterable(read.extract_paper_keywords(p.keyword) for p in tt.papers))
     for kw in paper_keywords:
         yield paper_keyword_counts[kw]
-
-    #number of occurrences of common title keywords for this author
-    paper_title_keyword_counts = read.general_keyword_counter(p.title for p in at.papers)
-    for kw in paper_title_keywords:
-        yield paper_title_keyword_counts[kw]
-
-    #number of conferences by author
-    yield len(set(c.id for c in at.conferences))
-
-    #number of occurrences of common conference fullname keywords
-    conference_fullname_keyword_counts = read.general_keyword_counter(c.fullname for c in at.conferences)
-    for kw in conference_fullname_keywords:
-        yield conference_fullname_keyword_counts[kw]
-
-    #number of journals
-    yield len(set(j.id for j in at.journals))
-
-    #number of occurrences of common journal fullname keywords
-    journal_fullname_keyword_counts = read.general_keyword_counter(j.fullname for j in at.journals)
-    for kw in journal_fullname_keywords:
-        yield journal_fullname_keyword_counts[kw]
-
-
-def __build_paper_tuple(pt, paper_keywords, paper_title_keywords,
-                        conference_fullname_keywords, journal_fullname_keywords):
-    yield pt.year
-
-    paper_keyword_counts = Counter(read.extract_paper_keywords(pt.paper.keyword))
-    for kw in paper_keywords:
-        yield paper_keyword_counts[kw]
-
-    title_keyword_counts = Counter(read.extract_general_keywords(pt.paper.title))
+    title_keyword_counts = read.general_keyword_counter(p.title for p in tt.papers)
     for kw in paper_title_keywords:
         yield title_keyword_counts[kw]
-
-    conference_fullname_keyword_counts = read.general_keyword_counter(c.fullname for c in at.conferences)
+    conference_fullname_keyword_counts = read.general_keyword_counter(c.fullname for c in tt.conferences)
     for kw in conference_fullname_keywords:
         yield conference_fullname_keyword_counts[kw]
-
-    journal_fullname_keyword_counts = read.general_keyword_counter(j.fullname for j in at.journals)
+    journal_fullname_keyword_counts = read.general_keyword_counter(j.fullname for j in tt.journals)
     for kw in journal_fullname_keywords:
         yield journal_fullname_keyword_counts[kw]
-
-    yield len(pt.paperauthors)
 
 
 if __name__ == "__main__":
@@ -73,15 +56,10 @@ if __name__ == "__main__":
     ptc = keyword_repository.most_common_paper_titles(50)
     cfc = keyword_repository.most_common_conference_fullnames(50)
     jfc = keyword_repository.most_common_journal_fullnames(50)
-    author_tuples = dict()
 
-    longest_list = []
-    for batch in itertools.zip_longest(*[iter(range(1, 2300000))] * 500): #[[2563, 8695, 19946, 26537, 32227]]:
-        for t in (__build_author_tuple(at, aac, pkc, ptc, cfc, jfc) for at in
-                  data.get_author_training_tuples(list(batch))):
-            nonzeroes = [i for i in t if i > 0]
-            if len(nonzeroes) > len(longest_list):
-                longest_list = nonzeroes
-        print("current longest tuple: {0} items".format(len(longest_list)))
-        print(longest_list)
-    pass
+    print("build training data")
+    training_data = {(t[0:2]): t[2] for t in data.read_training_ids()}
+    print("build author tuples")
+    author_tuples = list(data.get_training_tuples([k[0] for k in training_data.keys()], Author))
+    print("build paper tuples")
+    paper_tuples = list(data.get_training_tuples([k[1] for k in training_data.keys()], Paper))
