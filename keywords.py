@@ -53,24 +53,7 @@ class KeywordRepository(object):
 
 
 def get_or_create_keyword_repository(data_model_path=settings.MODEL_PATH + "\keyword_counts.pickle", force_create=False):
-    if force_create:
-        try:
-            os.remove(data_model_path)
-            print("original data model file deleted")
-        except OSError:
-            pass
-
-    try:
-        with open(data_model_path, 'rb') as file:
-            print("found data model at {0}".format(data_model_path))
-            return pickle.load(file)
-    except IOError:
-        print("no file found at {0}, creating new data model from database".format(data_model_path))
-        data_model = KeywordRepository()
-        print("saving data model at location: {0}".format(data_model_path))
-        with open(data_model_path, 'wb') as file:
-            pickle.dump(data_model, file)
-        return data_model
+    return read.unpickle_or_build(data_model_path, KeywordRepository, force_create=force_create)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 import psycopg2
-from models import Author, Paper, PaperAuthor, Conference, Journal, TrainingTuple, Train
+from models import Author, Paper, PaperAuthor, Conference, Journal, Expanded
 import settings
 
 
@@ -7,9 +7,9 @@ def __get_cursor():
     return psycopg2.connect(settings.POSTGRESQL_CONNECTION_STRING).cursor()
 
 
-def __execute_sql(sql, params=None):
+def __execute_sql(sql):
     cursor = __get_cursor()
-    cursor.execute(sql, params)
+    cursor.execute(sql)
     return cursor
 
 
@@ -33,58 +33,40 @@ def get_paper_titles_and_keywords():
     return __execute_sql("select title, keyword from paper where length(title) > 0 or length(keyword) > 0")
 
 
-def get_training_tuples(ids, tuple_type):
-    table_alias_by_type = {Author: "a", Paper: "p"}
+def __get_expanded_tuples(inner_table):
     sql = """
+with ids as ({0})
 select a.id, a.name, a.affiliation,
-  pa.paperid, pa.authorid, pa.name, pa.affiliation,
+  pa.paperid, pa.authorid, pa.name, pa.affiliation, ids.confirmed,
   p.id, p.title, p.year, p.keyword,
   c.id, c.shortname, c.fullname,
   j.id, j.shortname, j.fullname
-from author a
-
-  left join paperauthor pa on a.id = pa.authorid
-  left join paper p on pa.paperid = p.id
+from ids
+  inner join paperauthor pa on ids.authorid = pa.authorid and ids.paperid = pa.paperid
+  inner join author a on pa.authorid = a.id
+  inner join paper p on pa.paperid = p.id
   left join conference c on p.conferenceid = c.id
   left join journal j on p.journalid = j.id
-where {0}.id = any(values {1})
-order by {0}.id
-""".format(table_alias_by_type[tuple_type], ",".join("({0})".format(i) for i in ids))
-    tt = TrainingTuple._make(set() for x in range(5))
-    # cursor = __get_cursor()
-    # mogrified = cursor.mogrify(sql, (ids,))
+""".format(inner_table)
+    build_from_row = lambda r: Expanded(author=Author._make(r[0:3]) if r[0] else None,
+                                        paperauthor=PaperAuthor._make(r[3:8]) if r[3] and r[4] else None,
+                                        paper=Paper._make(r[8:12]) if r[8] else None,
+                                        conference=Conference._make(r[12:15]) if r[12] else None,
+                                        journal=Journal._make(r[15:18]) if r[15] else None)
 
-    for r in __execute_sql(sql, (ids,)):
-        if (tuple_type == Author and any(tt.authors) and r[0] not in (a.id for a in tt.authors)) or \
-                (tuple_type == Paper and any(tt.papers) and r[7] not in (p.id for p in tt.papers)):
-            yield tt
-            tt = TrainingTuple._make(set() for x in range(5))
-
-        if r[0]:
-            tt.authors.add(Author._make(r[0:3]))
-        if r[3] and r[4]:
-            tt.paperauthors.add(PaperAuthor._make(r[3:7]))
-        if r[7]:
-            tt.papers.add(Paper._make(r[7:11]))
-        if r[11]:
-            tt.conferences.add(Conference._make(r[11:14]))
-        if r[14]:
-            tt.journals.add(Journal._make(r[14:17]))
-
-    if any(tt.authors):
-        yield tt
+    return [build_from_row(r) for r in __execute_sql(sql)]
 
 
-def read_training_ids():
-    sql = """
-select authorid, paperid, true
-from trainconfirmed
+def get_train_tuples():
+    inner_table = """
+select authorid, paperid, true confirmed from trainconfirmed
 union all
-select authorid, paperid, false
-from traindeleted
+select authorid, paperid, false confirmed from traindeleted
 """
-    return (Train._make(r) for r in __execute_sql(sql))
+    return __get_expanded_tuples(inner_table)
+
+def get_valid_tuples():
+    return __get_expanded_tuples("select authorid, paperid, null confirmed from validpaper")
 
 if __name__ == "__main__":
-    for at in get_training_tuples([1122750, 1998870, 2269160, 339923, 1378795, 634048, 1039808, 1085027, 92353, 973910],Author):
-        print(at)
+    pass
