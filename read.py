@@ -1,5 +1,4 @@
 from collections import Counter
-import csv
 import re
 import itertools
 from unidecode import unidecode
