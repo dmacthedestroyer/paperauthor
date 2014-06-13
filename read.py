@@ -1,5 +1,7 @@
+from collections import Counter
 import csv
 import re
+import itertools
 from unidecode import unidecode
 
 common_stopwords = {'ON', 'AND', 'IN', 'OF', 'FOR', 'THE', 'FROM', 'WITH', 'BASED', 'USING'}
@@ -21,6 +23,9 @@ def split_string(string, regex):
 
     return (x.strip() for x in regex.split(string) if x is not None and len(x) > 2 and x not in common_stopwords)
 
+
+def general_keyword_counter(strings):
+    return Counter(itertools.chain.from_iterable(extract_general_keywords(s) for s in strings))
 
 def extract_general_keywords(string):
     if string is None:

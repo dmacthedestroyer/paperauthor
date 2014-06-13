@@ -11,22 +11,22 @@ import settings
 class KeywordRepository(object):
     def __init__(self):
         print("building author affiliation keywords")
-        self._affiliation_counter = self.__build_keywords(Author.affiliation)
+        self.affiliation_counter = self.__build_keywords(Author.affiliation)
         print("building conference full name keywords")
-        self._conference_fullname_counter = self.__build_keywords(Conference.fullname)
+        self.conference_fullname_counter = self.__build_keywords(Conference.fullname)
         print("building journal full name keywords")
-        self._journal_fullname_counter = self.__build_keywords(Journal.fullname)
+        self.journal_fullname_counter = self.__build_keywords(Journal.fullname)
         print("building paper title and keywords")
-        self._paper_title_counter = Counter()
-        self._paper_keyword_counter = Counter()
+        self.paper_title_counter = Counter()
+        self.paper_keyword_counter = Counter()
         with settings.session_scope() as session:
             for t, kw in session.query(Paper.title, Paper.keyword).filter(or_(Paper.title != "", Paper.keyword != "")):
                 if t is not None:
                     for tkw in read.extract_general_keywords(t):
-                        self._paper_title_counter[tkw] += 1
+                        self.paper_title_counter[tkw] += 1
                 if kw is not None:
                     for kwkw in read.extract_paper_keywords(kw):
-                        self._paper_keyword_counter[kwkw] += 1
+                        self.paper_keyword_counter[kwkw] += 1
 
 
     def __build_keywords(self, db_column, keyword_extraction_func=read.extract_general_keywords):
@@ -36,15 +36,6 @@ class KeywordRepository(object):
             flattened = itertools.chain.from_iterable(extracted_keywords)
             return Counter(flattened)
 
-
-    def most_common_affiliation_keyword_counts(self, num_keywords):
-        return self._affiliation_counter.most_common(num_keywords)
-
-    def most_common_paper_keyword_counts(self, num_keywords):
-        return self._paper_keyword_counter.most_common(num_keywords)
-
-    def most_common_paper_title_counts(self, num_keywords):
-        return self._paper_title_counter.most_common(num_keywords)
 
 def get_or_create_keyword_repository(data_model_path=settings.MODEL_PATH + "\keyword_counts.pickle", force_create=False):
     if force_create:
