@@ -1,7 +1,10 @@
 from collections import Counter
 import itertools
+import pickle
+from sklearn.ensemble import RandomForestClassifier
 import data
 import keywords
+from keywords import KeywordRepository
 import models
 import read
 import settings
@@ -60,33 +63,45 @@ def __build_common_tuple(aet, paper_keywords, paper_title_keywords,
         yield journal_fullname_keyword_counts[kw]
 
 
-def __build_classification_tuples(expanded_tuples, num_affiliation_keywords=50, num_paper_keywords=100,
-                                  num_paper_title_keywords=50, num_conference_fullname_keywords=50,
-                                  num_journal_fullname_keywords=50):
-    keyword_repository = keywords.KeywordRepository()
+def __build_classification_tuples(expanded_tuples):
+    print("construct most common keywords")
+    keyword_repository = read.unpickle_or_build(settings.MODEL_PATH + "\\keywords.pickle", KeywordRepository)
 
-    aac = keyword_repository.most_common_affiliations(num_affiliation_keywords)
-    pkc = keyword_repository.most_common_paper_keywords(num_paper_keywords)
-    ptc = keyword_repository.most_common_paper_titles(num_paper_title_keywords)
-    cfc = keyword_repository.most_common_conference_fullnames(num_conference_fullname_keywords)
-    jfc = keyword_repository.most_common_journal_fullnames(num_journal_fullname_keywords)
+    aac = keyword_repository.most_common_affiliations()
+    pkc = keyword_repository.most_common_paper_keywords()
+    ptc = keyword_repository.most_common_paper_titles()
+    cfc = keyword_repository.most_common_conference_fullnames()
+    jfc = keyword_repository.most_common_journal_fullnames()
 
+    print("building classification tuples:")
     a = {g[0].id: list(__build_author_tuple(g[1], aac, pkc, ptc, cfc, jfc)) for g in models.group_expanded_tuples(expanded_tuples, lambda e: e.author)}
+    print("\tauthor tuples built")
     p = {g[0].id: list(__build_paper_tuple(g[1], pkc, ptc, cfc, jfc)) for g in models.group_expanded_tuples(expanded_tuples, lambda e: e.paper)}
-    pa = {(g[0].paperid, g[0].authorid): list(__build_paperauthor_tuple(g[1], aac)) for g in models.group_expanded_tuples(expanded_tuples, lambda e: e.paperauthor)}
+    print("\tpaper tuples built")
+    pa = {(g[0].authorid, g[0].paperid): list(__build_paperauthor_tuple(g[1], aac)) for g in models.group_expanded_tuples(expanded_tuples, lambda e: e.paperauthor)}
+    print("\tpaperauthor tuples built")
 
-    for k in pa:
-        yield list(itertools.chain(a[k[1]], p[k[0]], pa[k]))
+    return {k: list(itertools.chain(a[k[0]], p[k[1]], pa[k])) for k in pa}
 
 if __name__ == "__main__":
-    print("read training tuples")
-    training_tuples = data.get_train_tuples()
-    print("build classification tuples")
-    classification_tuples = list(__build_classification_tuples(training_tuples))
+    classification_tuples = read.unpickle_or_build(settings.MODEL_PATH + "\\classification_tuples.pickle",
+                                                   lambda: __build_classification_tuples(data.get_train_tuples()))
+    print("get training class labels")
+    training_class_labels = read.unpickle_or_build(settings.MODEL_PATH + "\\training_class_labels.pickle",
+                                                   lambda: data.get_training_class_labels())
+    print("train the classifier")
+    classifier = RandomForestClassifier(n_estimators=50)
+    classifier_input_tuples = [classification_tuples[k] for k in training_class_labels]
+    classifier_input_class_labels = [training_class_labels[k] for k in training_class_labels]
+    classifier.fit(classifier_input_tuples, classifier_input_class_labels)
+
+    with open(settings.MODEL_PATH + "\\classifier.pickle", "wb") as file:
+        pickle.dump(classifier, file)
+
     print("print shit out")
     print("total tuples: {0}".format(len(classification_tuples)))
     longest_list = None
-    for l in classification_tuples:
+    for l in classification_tuples.values():
         nonzero = [i for i in l if i > 0]
         if longest_list is None or len(longest_list) < len(nonzero):
             longest_list = nonzero
