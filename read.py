@@ -51,18 +51,14 @@ def unpickle_or_build(filename, factory, force_create=False):
     if force_create:
         try:
             os.remove(filename)
-            print("original data model file deleted")
         except OSError:
             pass
 
     try:
         with open(filename, 'rb') as file:
-            print("found data model at {0}".format(filename))
             return pickle.load(file)
     except IOError:
-        print("no file found at {0}, creating new object".format(filename))
         obj = factory()
-        print("saving data model at location: {0}".format(filename))
         with open(filename, 'wb') as file:
             pickle.dump(obj, file)
         return obj

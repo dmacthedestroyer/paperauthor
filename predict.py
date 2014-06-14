@@ -5,7 +5,8 @@ import read
 import settings
 import train
 
-if __name__ == "__main__":
+
+def submit_prediction():
     print("build tuples from validation data")
     classification_tuples = read.unpickle_or_build(settings.MODEL_DIR + "\\classification_tuples.pickle",
                                                    lambda: train.build_classification_tuples(data.get_valid_tuples()))
@@ -33,3 +34,7 @@ if __name__ == "__main__":
         writer.writerow(("AuthorId", "PaperIds"))
         for author_id in paper_predictions:
             writer.writerow((str(author_id), " ".join(str(i) for i in paper_predictions[author_id])))
+
+
+if __name__ == "__main__":
+    submit_prediction()
