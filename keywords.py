@@ -94,11 +94,11 @@ class KeywordRepository(object):
             if kw:
                 for kwkw in extract_paper_keywords(kw):
                     __paper_keyword_counter[kwkw] += 1
-        self.paper_title_keywords = [t[0] for t in __paper_title_counter.most_common(20)]
-        self.paper_keywords = [t[0] for t in __paper_keyword_counter.most_common(20)]
+        self.paper_title_keywords = [t[0] for t in __paper_title_counter.most_common(100)]
+        self.paper_keywords = [t[0] for t in __paper_keyword_counter.most_common(100)]
 
     @staticmethod
-    def __build_keywords(keyword_iter, n=20):
+    def __build_keywords(keyword_iter, n=100):
         extracted_keywords = (extract_general_keywords(a) for a in keyword_iter)
         flattened = itertools.chain.from_iterable(extracted_keywords)
         return [t[0] for t in Counter(flattened).most_common(n)]
