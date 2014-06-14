@@ -7,5 +7,5 @@ POSTGRESQL_CONNECTION_STRING = "host='localhost' dbname='authorpaper' user='post
 # Path to where the submission csv file shoud be written to
 SUBMISSION_PATH = "C:\Development\TCSS555\Submission.csv"
 
-# Path to the valid solution file, for calculating the MAP
+# Path to the valid solution file, if you wish to calculate the MAP
 VALID_SOLUTION_PATH = "C:\Development\TCSS555\dataRev2\ValidSolution.csv"

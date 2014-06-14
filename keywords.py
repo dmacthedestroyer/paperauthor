@@ -4,17 +4,32 @@ import re
 from unidecode import unidecode
 import data
 
+# exclude the following stopwords from being considered keywords
 __common_stopwords = {'ON', 'AND', 'IN', 'OF', 'FOR', 'THE', 'FROM', 'WITH', 'BASED', 'USING'}
+# a simple regex to strip any leading "KEYWORDS:"-style nonsense from paper keyword attributes
 __paper_keyword_line_strip_regex = re.compile("KEY[S\"\s-]*(WORD|TERM)S?[:;.-]?")
+# paper keywords are separated by ";", "|", ",", and " - ", so we'll split on that
 __paper_keyword_split_regex = re.compile("[;|,]|\s-\s")
+# names, titles, and other stuff like that, we'll just split on whitespace
 __general_keyword_split_regex = re.compile("[\W]")
 
 
 def general_keyword_counter(strings):
+    """
+    Cleans, splits, flattens and returns a Counter for the specified collection of unprocessed strings for general
+    keyword extraction
+    :param strings: a collection of strings which will individually get split, then flattened into a single list
+    :return: a Counter object for the processed strings
+    """
     return Counter(itertools.chain.from_iterable(extract_general_keywords(s) for s in strings))
 
 
 def extract_general_keywords(string):
+    """
+    Cleans and splits a single string object into a list of keywords
+    :param string:
+    :return:
+    """
     if string is None:
         return []
 
@@ -22,10 +37,21 @@ def extract_general_keywords(string):
 
 
 def __scrub_string(string):
+    """
+    Unaccent, upper-case and remove extra whitespace for a given string
+    :param string:
+    :return:
+    """
     return unidecode(string).upper().strip() if string is not None else ""
 
 
 def __split_string(string, regex):
+    """
+    Splits a string and removes common stop words
+    :param string:
+    :param regex:
+    :return: a generator function fetching each word from the provided string
+    """
     if string is None:
         return []
 
@@ -33,6 +59,11 @@ def __split_string(string, regex):
 
 
 def extract_paper_keywords(string):
+    """
+    Scrubs and splits a given string within the context of a paper keyword
+    :param string:
+    :return:
+    """
     if string is None:
         return []
 
@@ -65,18 +96,43 @@ class KeywordRepository(object):
                     self.__paper_keyword_counter[kwkw] += 1
 
     def most_common_affiliations(self, n=50):
+        """
+        Returns the n most common words found in the author.affiliation attribute
+        :param n:
+        :return:
+        """
         return self.__strip_most_common_keywords(self.__affiliation_counter.most_common(n))
 
     def most_common_paper_keywords(self, n=100):
+        """
+        Returns the n most common words found in the paper.keyword attribute
+        :param n:
+        :return:
+        """
         return self.__strip_most_common_keywords(self.__paper_keyword_counter.most_common(n))
 
     def most_common_paper_titles(self, n=50):
+        """
+        Returns the n most common words found in the paper.title attribute
+        :param n:
+        :return:
+        """
         return self.__strip_most_common_keywords(self.__paper_title_counter.most_common(n))
 
     def most_common_conference_fullnames(self, n=50):
+        """
+        Returns the n most common words found in the conference.fullname attribute
+        :param n:
+        :return:
+        """
         return self.__strip_most_common_keywords(self.__conference_fullname_counter.most_common(n))
 
     def most_common_journal_fullnames(self, n=50):
+        """
+        Returns the n most common words found in the journal.fullname attribute
+        :param n:
+        :return:
+        """
         return self.__strip_most_common_keywords(self.__journal_fullname_counter.most_common(n))
 
     @staticmethod

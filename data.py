@@ -56,6 +56,10 @@ from ids
 
 
 def get_train_tuples():
+    """
+    Returns a list of Expanded namedtuples for each row in the trainconfirmed, traindeleted tables
+    :return:
+    """
     inner_table = """
 select authorid, paperid from trainconfirmed
 union all
@@ -65,6 +69,10 @@ select authorid, paperid from traindeleted
 
 
 def get_training_class_labels():
+    """
+    Returns a dict with whether the given (authorid, paperid) pair is confirmed or deleted in the training set
+    :return:
+    """
     sql = """
 select authorid, paperid, true confirmed from trainconfirmed
 union all
@@ -74,10 +82,23 @@ select authorid, paperid, false confirmed from traindeleted
 
 
 def get_valid_tuples():
+    """
+    Returns a list of Expanded namedtuples for each (authorid, paperid) pair in the validpaper table
+    :return:
+    """
     return __get_expanded_tuples("select authorid, paperid from validpaper")
 
 
 def unpickle_or_build(filename, factory, force_create=False):
+    """
+    Attempts to unpickle an object at the given file location, or otherwise will create and pickle an object at the
+    given file location.  This is useful for persistently caching objects that take some time to initially create
+    :param filename: the file location for unpickling
+    :param factory: a function to call if the file location doesn't exist.  The resultant object will be pickled and
+    then returned
+    :param force_create: delete any existing file at filename and call the factory parameter to pickle a new object
+    :return: the unpickled object, if a file exists at filename, otherwise the result of calling factory
+    """
     if force_create:
         try:
             os.remove(settings.MODEL_DIR + filename)
