@@ -1,10 +1,47 @@
 from collections import Counter
 import itertools
-import os
-import pickle
+import re
+from unidecode import unidecode
 import data
-import read
-import settings
+
+__common_stopwords = {'ON', 'AND', 'IN', 'OF', 'FOR', 'THE', 'FROM', 'WITH', 'BASED', 'USING'}
+__paper_keyword_line_strip_regex = re.compile("KEY[S\"\s-]*(WORD|TERM)S?[:;.-]?")
+__paper_keyword_split_regex = re.compile("[;|,]|\s-\s")
+__general_keyword_split_regex = re.compile("[\W]")
+
+
+def general_keyword_counter(strings):
+    return Counter(itertools.chain.from_iterable(extract_general_keywords(s) for s in strings))
+
+
+def extract_general_keywords(string):
+    if string is None:
+        return []
+
+    return __split_string(__scrub_string(string), __general_keyword_split_regex)
+
+
+def __scrub_string(string):
+    return unidecode(string).upper().strip() if string is not None else ""
+
+
+def __split_string(string, regex):
+    if string is None:
+        return []
+
+    return (x.strip() for x in regex.split(string) if x is not None and len(x) > 2 and x not in __common_stopwords)
+
+
+def extract_paper_keywords(string):
+    if string is None:
+        return []
+
+    # to upper, replace accents, other general scrubbing stuff
+    keywords = __scrub_string(string)
+    # lots of entries begin with some variant of "Keywords: ", so strip that out.  And a lot of others end in a period
+    keywords = re.sub(__paper_keyword_line_strip_regex, "", keywords).rstrip(".")
+    # split on common separators (";", "|", ",", " - "), then get rid of any extra whitespace
+    return __split_string(keywords, __paper_keyword_split_regex)
 
 
 class KeywordRepository(object):
@@ -21,10 +58,10 @@ class KeywordRepository(object):
         self.__paper_keyword_counter = Counter()
         for t, kw in data.get_paper_titles_and_keywords():
             if t:
-                for tkw in read.extract_general_keywords(t):
+                for tkw in extract_general_keywords(t):
                     self.__paper_title_counter[tkw] += 1
             if kw:
-                for kwkw in read.extract_paper_keywords(kw):
+                for kwkw in extract_paper_keywords(kw):
                     self.__paper_keyword_counter[kwkw] += 1
 
     def most_common_affiliations(self, n=50):
@@ -48,14 +85,6 @@ class KeywordRepository(object):
 
     @staticmethod
     def __build_keywords(keyword_iter):
-        extracted_keywords = (read.extract_general_keywords(a) for a in keyword_iter)
+        extracted_keywords = (extract_general_keywords(a) for a in keyword_iter)
         flattened = itertools.chain.from_iterable(extracted_keywords)
         return Counter(flattened)
-
-
-def get_or_create_keyword_repository(data_model_path=settings.MODEL_DIR + "\keyword_counts.pickle", force_create=False):
-    return read.unpickle_or_build(data_model_path, KeywordRepository, force_create=force_create)
-
-
-if __name__ == "__main__":
-    model = get_or_create_keyword_repository(force_create=False)

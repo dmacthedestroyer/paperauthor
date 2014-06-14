@@ -1,14 +1,12 @@
+import os
+import pickle
 import psycopg2
 from models import Author, Paper, PaperAuthor, Conference, Journal, Expanded
 import settings
 
 
-def __get_cursor():
-    return psycopg2.connect(settings.POSTGRESQL_CONNECTION_STRING).cursor()
-
-
 def __execute_sql(sql):
-    cursor = __get_cursor()
+    cursor = psycopg2.connect(settings.POSTGRESQL_CONNECTION_STRING).cursor()
     cursor.execute(sql)
     return cursor
 
@@ -78,5 +76,19 @@ select authorid, paperid, false confirmed from traindeleted
 def get_valid_tuples():
     return __get_expanded_tuples("select authorid, paperid from validpaper")
 
-if __name__ == "__main__":
-    pass
+
+def unpickle_or_build(filename, factory, force_create=False):
+    if force_create:
+        try:
+            os.remove(settings.MODEL_DIR + filename)
+        except OSError:
+            pass
+
+    try:
+        with open(settings.MODEL_DIR + filename, 'rb') as file:
+            return pickle.load(file)
+    except IOError:
+        obj = factory()
+        with open(settings.MODEL_DIR + filename, 'wb') as file:
+            pickle.dump(obj, file)
+        return obj

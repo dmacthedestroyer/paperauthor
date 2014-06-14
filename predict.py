@@ -1,19 +1,17 @@
 from collections import defaultdict
 import csv
 import data
-import read
 import settings
 import train
 
 
 def submit_prediction():
     print("build tuples from validation data")
-    classification_tuples = read.unpickle_or_build(settings.MODEL_DIR + "\\classification_tuples.pickle",
+    classification_tuples = data.unpickle_or_build("classification_tuples.pickle",
                                                    lambda: train.build_classification_tuples(data.get_valid_tuples()))
     print("get the classifier based on the training data")
-    classifier = read.unpickle_or_build(settings.MODEL_DIR + "\\classifier.pickle",
+    classifier = data.unpickle_or_build("classifier.pickle",
                                         lambda: train.build_paper_author_classifier()[0])
-
 
     classification_tuple_keys = classification_tuples.keys()
     print("build predictions for validation data")

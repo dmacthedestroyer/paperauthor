@@ -4,9 +4,8 @@ from random import randint
 from sklearn.ensemble import RandomForestClassifier
 import data
 from keywords import KeywordRepository
+import keywords
 import models
-import read
-import settings
 
 
 def __build_author_tuple(aet, affiliation_keywords, paper_keywords, paper_title_keywords,
@@ -20,7 +19,7 @@ def __build_author_tuple(aet, affiliation_keywords, paper_keywords, paper_title_
     yield max(years) if any(years) else 0
     yield len(aet.conference)
     yield len(aet.journal)
-    author_affiliation_keyword_counts = read.general_keyword_counter(a.affiliation for a in aet.author)
+    author_affiliation_keyword_counts = keywords.general_keyword_counter(a.affiliation for a in aet.author)
     for kw in affiliation_keywords:
         yield author_affiliation_keyword_counts[kw]
 
@@ -41,29 +40,29 @@ def __build_paper_tuple(aet, paper_keywords, paper_title_keywords, conference_fu
 def __build_paperauthor_tuple(aet, affiliation_keywords):
     assert len(aet.paperauthor) == 1
 
-    paperauthor_affiliation_counts = read.general_keyword_counter(pa.affiliation for pa in aet.paperauthor)
+    paperauthor_affiliation_counts = keywords.general_keyword_counter(pa.affiliation for pa in aet.paperauthor)
     for kw in affiliation_keywords:
         yield paperauthor_affiliation_counts[kw]
 
 
 def __build_common_tuple(aet, paper_keywords, paper_title_keywords,
                          conference_fullname_keywords, journal_fullname_keywords):
-    paper_keyword_counts = Counter(itertools.chain.from_iterable(read.extract_paper_keywords(p.keyword) for p in aet.paper))
+    paper_keyword_counts = Counter(itertools.chain.from_iterable(keywords.extract_paper_keywords(p.keyword) for p in aet.paper))
     for kw in paper_keywords:
         yield paper_keyword_counts[kw]
-    title_keyword_counts = read.general_keyword_counter(p.title for p in aet.paper)
+    title_keyword_counts = keywords.general_keyword_counter(p.title for p in aet.paper)
     for kw in paper_title_keywords:
         yield title_keyword_counts[kw]
-    conference_fullname_keyword_counts = read.general_keyword_counter(c.fullname for c in aet.conference)
+    conference_fullname_keyword_counts = keywords.general_keyword_counter(c.fullname for c in aet.conference)
     for kw in conference_fullname_keywords:
         yield conference_fullname_keyword_counts[kw]
-    journal_fullname_keyword_counts = read.general_keyword_counter(j.fullname for j in aet.journal)
+    journal_fullname_keyword_counts = keywords.general_keyword_counter(j.fullname for j in aet.journal)
     for kw in journal_fullname_keywords:
         yield journal_fullname_keyword_counts[kw]
 
 
 def build_classification_tuples(expanded_tuples):
-    keyword_repository = read.unpickle_or_build(settings.MODEL_DIR + "\\keywords.pickle", KeywordRepository)
+    keyword_repository = data.unpickle_or_build("keywords.pickle", KeywordRepository)
 
     aac = keyword_repository.most_common_affiliations()
     pkc = keyword_repository.most_common_paper_keywords()
@@ -83,10 +82,10 @@ def build_classification_tuples(expanded_tuples):
 
 
 def build_paper_author_classifier():
-    training_tuples = read.unpickle_or_build(settings.MODEL_DIR + "\\training_tuples.pickle",
+    training_tuples = data.unpickle_or_build("training_tuples.pickle",
                                              lambda: build_classification_tuples(data.get_train_tuples()))
     print("get training class labels")
-    training_class_labels = read.unpickle_or_build(settings.MODEL_DIR + "\\training_class_labels.pickle",
+    training_class_labels = data.unpickle_or_build("training_class_labels.pickle",
                                                    lambda: data.get_training_class_labels())
     print("train the classifier")
     training, validation = list(), list()
@@ -99,11 +98,11 @@ def build_paper_author_classifier():
     classifier = RandomForestClassifier(n_estimators=50, verbose=2)
     classifier.fit(classifier_input_tuples, classifier_input_class_labels)
 
-    return classifier, [training_tuples[k] for k in validation], [training_class_labels[k] for k in validation]
+    print("calculate accuracy of classifier")
+    return classifier, classifier.score([training_tuples[k] for k in validation],
+                                        [training_class_labels[k] for k in validation])
 
 
 if __name__ == "__main__":
-    classifier, validation_input_tuples, validation_input_class_labels = build_paper_author_classifier()
-    print("measure classifier precision")
-    print("mean accuracy with validation data: {0}".format(classifier.score(validation_input_tuples,
-                                                                            validation_input_class_labels)))
+    classifier, score = build_paper_author_classifier()
+    print("mean accuracy with validation data: {0}".format(score))
