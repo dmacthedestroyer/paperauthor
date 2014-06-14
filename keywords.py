@@ -9,13 +9,14 @@ import settings
 
 class KeywordRepository(object):
     def __init__(self):
-        print("building author affiliation keywords")
+        print("construct most common keywords:")
+        print("\tbuilding author affiliation keywords")
         self.__affiliation_counter = self.__build_keywords(data.get_author_affiliations())
-        print("building conference full name keywords")
+        print("\tbuilding conference full name keywords")
         self.__conference_fullname_counter = self.__build_keywords(data.get_conference_fullnames())
-        print("building journal full name keywords")
+        print("\tbuilding journal full name keywords")
         self.__journal_fullname_counter = self.__build_keywords(data.get_journal_fullnames())
-        print("building paper title and keywords")
+        print("\tbuilding paper title and keywords")
         self.__paper_title_counter = Counter()
         self.__paper_keyword_counter = Counter()
         for t, kw in data.get_paper_titles_and_keywords():

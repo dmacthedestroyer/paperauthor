@@ -1,9 +1,8 @@
 from collections import Counter
 import itertools
-import pickle
+from random import randint
 from sklearn.ensemble import RandomForestClassifier
 import data
-import keywords
 from keywords import KeywordRepository
 import models
 import read
@@ -64,7 +63,6 @@ def __build_common_tuple(aet, paper_keywords, paper_title_keywords,
 
 
 def __build_classification_tuples(expanded_tuples):
-    print("construct most common keywords")
     keyword_repository = read.unpickle_or_build(settings.MODEL_PATH + "\\keywords.pickle", KeywordRepository)
 
     aac = keyword_repository.most_common_affiliations()
@@ -73,15 +71,22 @@ def __build_classification_tuples(expanded_tuples):
     cfc = keyword_repository.most_common_conference_fullnames()
     jfc = keyword_repository.most_common_journal_fullnames()
 
-    print("building classification tuples:")
+    print("build classification tuples:")
     a = {g[0].id: list(__build_author_tuple(g[1], aac, pkc, ptc, cfc, jfc)) for g in models.group_expanded_tuples(expanded_tuples, lambda e: e.author)}
-    print("\tauthor tuples built")
+    print("\tauthor-specific tuples built")
     p = {g[0].id: list(__build_paper_tuple(g[1], pkc, ptc, cfc, jfc)) for g in models.group_expanded_tuples(expanded_tuples, lambda e: e.paper)}
-    print("\tpaper tuples built")
+    print("\tpaper-specific tuples built")
     pa = {(g[0].authorid, g[0].paperid): list(__build_paperauthor_tuple(g[1], aac)) for g in models.group_expanded_tuples(expanded_tuples, lambda e: e.paperauthor)}
-    print("\tpaperauthor tuples built")
+    print("\tpaperauthor-specific tuples built")
 
     return {k: list(itertools.chain(a[k[0]], p[k[1]], pa[k])) for k in pa}
+
+
+def __train_classifier(x, y):
+    c = RandomForestClassifier(n_estimators=50, verbose=2)
+    c.fit(x, y)
+    return c
+
 
 if __name__ == "__main__":
     classification_tuples = read.unpickle_or_build(settings.MODEL_PATH + "\\classification_tuples.pickle",
@@ -90,20 +95,17 @@ if __name__ == "__main__":
     training_class_labels = read.unpickle_or_build(settings.MODEL_PATH + "\\training_class_labels.pickle",
                                                    lambda: data.get_training_class_labels())
     print("train the classifier")
-    classifier = RandomForestClassifier(n_estimators=50)
-    classifier_input_tuples = [classification_tuples[k] for k in training_class_labels]
-    classifier_input_class_labels = [training_class_labels[k] for k in training_class_labels]
-    classifier.fit(classifier_input_tuples, classifier_input_class_labels)
+    training, validation = list(), list()
+    for i in training_class_labels:
+        training.append(i) if randint(0, 10) < 7 else validation.append(i)
 
-    with open(settings.MODEL_PATH + "\\classifier.pickle", "wb") as file:
-        pickle.dump(classifier, file)
 
-    print("print shit out")
-    print("total tuples: {0}".format(len(classification_tuples)))
-    longest_list = None
-    for l in classification_tuples.values():
-        nonzero = [i for i in l if i > 0]
-        if longest_list is None or len(longest_list) < len(nonzero):
-            longest_list = nonzero
-            print("new longest classification tuple: {0} non-zero items".format(len(nonzero)))
-            print(l)
+    classifier_input_tuples = [classification_tuples[k] for k in training]
+    classifier_input_class_labels = [training_class_labels[k] for k in training]
+    classifier = read.unpickle_or_build(settings.MODEL_PATH + "\\classifier.pickle",
+                                        lambda: __train_classifier(classifier_input_tuples, classifier_input_class_labels))
+
+    print("measure classifier precision")
+    validation_input_labels = [classification_tuples[k] for k in validation]
+    validation_input_class_labels = [training_class_labels[k] for k in validation]
+    print("mean accuracy with validation data: {0}".format(classifier.score(validation_input_labels, validation_input_class_labels)))
