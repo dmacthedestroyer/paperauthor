@@ -20,8 +20,13 @@ if __name__ == "__main__":
         predict.submit_prediction()
         submission = __read_rows(settings.SUBMISSION_PATH)
 
+    print("*** Calculate Mean Average Precision ***")
+    print("\tbuilding valid solution")
     valid_solution = __read_rows(settings.VALID_SOLUTION_PATH)
 
-    assert sorted(valid_solution.keys()) == sorted(submission.keys()), "submission doesn't have the same author ids as valid"
-    score = mapk([valid_solution[k] for k in valid_solution.keys()], [submission[k] for k in valid_solution.keys()])
-    print("Mean average precision for solution file: {0}".format(score))
+    if sorted(valid_solution.keys()) != sorted(submission.keys()):
+        print("The submission is incorrect: author ids are mismatched with the valid dataset")
+    else:
+        print("\tcalculating score")
+        score = mapk([valid_solution[k] for k in valid_solution.keys()], [submission[k] for k in valid_solution.keys()])
+        print("\n*** Mean average precision for solution file: {0} ***".format(score))

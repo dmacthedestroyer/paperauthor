@@ -79,68 +79,26 @@ class KeywordRepository(object):
     def __init__(self):
         print("construct most common keywords:")
         print("\tbuilding author affiliation keywords")
-        self.__affiliation_counter = self.__build_keywords(data.get_author_affiliations())
+        self.affiliation_keywords = self.__build_keywords(data.get_author_affiliations())
         print("\tbuilding conference full name keywords")
-        self.__conference_fullname_counter = self.__build_keywords(data.get_conference_fullnames())
+        self.conference_fullname_keywords = self.__build_keywords(data.get_conference_fullnames())
         print("\tbuilding journal full name keywords")
-        self.__journal_fullname_counter = self.__build_keywords(data.get_journal_fullnames())
+        self.journal_fullname_keywords = self.__build_keywords(data.get_journal_fullnames())
         print("\tbuilding paper title and keywords")
-        self.__paper_title_counter = Counter()
-        self.__paper_keyword_counter = Counter()
+        __paper_title_counter = Counter()
+        __paper_keyword_counter = Counter()
         for t, kw in data.get_paper_titles_and_keywords():
             if t:
                 for tkw in extract_general_keywords(t):
-                    self.__paper_title_counter[tkw] += 1
+                    __paper_title_counter[tkw] += 1
             if kw:
                 for kwkw in extract_paper_keywords(kw):
-                    self.__paper_keyword_counter[kwkw] += 1
-
-    def most_common_affiliations(self, n=50):
-        """
-        Returns the n most common words found in the author.affiliation attribute
-        :param n:
-        :return:
-        """
-        return self.__strip_most_common_keywords(self.__affiliation_counter.most_common(n))
-
-    def most_common_paper_keywords(self, n=100):
-        """
-        Returns the n most common words found in the paper.keyword attribute
-        :param n:
-        :return:
-        """
-        return self.__strip_most_common_keywords(self.__paper_keyword_counter.most_common(n))
-
-    def most_common_paper_titles(self, n=50):
-        """
-        Returns the n most common words found in the paper.title attribute
-        :param n:
-        :return:
-        """
-        return self.__strip_most_common_keywords(self.__paper_title_counter.most_common(n))
-
-    def most_common_conference_fullnames(self, n=50):
-        """
-        Returns the n most common words found in the conference.fullname attribute
-        :param n:
-        :return:
-        """
-        return self.__strip_most_common_keywords(self.__conference_fullname_counter.most_common(n))
-
-    def most_common_journal_fullnames(self, n=50):
-        """
-        Returns the n most common words found in the journal.fullname attribute
-        :param n:
-        :return:
-        """
-        return self.__strip_most_common_keywords(self.__journal_fullname_counter.most_common(n))
+                    __paper_keyword_counter[kwkw] += 1
+        self.paper_title_keywords = [t[0] for t in __paper_title_counter.most_common(20)]
+        self.paper_keywords = [t[0] for t in __paper_keyword_counter.most_common(20)]
 
     @staticmethod
-    def __strip_most_common_keywords(common_tuple):
-        return [t[0] for t in common_tuple]
-
-    @staticmethod
-    def __build_keywords(keyword_iter):
+    def __build_keywords(keyword_iter, n=20):
         extracted_keywords = (extract_general_keywords(a) for a in keyword_iter)
         flattened = itertools.chain.from_iterable(extracted_keywords)
-        return Counter(flattened)
+        return [t[0] for t in Counter(flattened).most_common(n)]
