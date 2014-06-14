@@ -53,7 +53,7 @@ class KeywordRepository(object):
         return Counter(flattened)
 
 
-def get_or_create_keyword_repository(data_model_path=settings.MODEL_PATH + "\keyword_counts.pickle", force_create=False):
+def get_or_create_keyword_repository(data_model_path=settings.MODEL_DIR + "\keyword_counts.pickle", force_create=False):
     return read.unpickle_or_build(data_model_path, KeywordRepository, force_create=force_create)
 
 

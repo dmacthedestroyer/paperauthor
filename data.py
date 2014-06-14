@@ -74,8 +74,9 @@ select authorid, paperid, false confirmed from traindeleted
 """
     return {(r[0], r[1]): r[2] for r in __execute_sql(sql)}
 
+
 def get_valid_tuples():
-    return __get_expanded_tuples("select authorid, paperid, null confirmed from validpaper")
+    return __get_expanded_tuples("select authorid, paperid from validpaper")
 
 if __name__ == "__main__":
     pass
